@@ -1,0 +1,59 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    container_name: kernel-chat-postgres
+    network_mode: host
+    environment:
+      POSTGRES_DB: kernelchat
+      POSTGRES_USER: kernelchat
+      POSTGRES_PASSWORD: kernelchat
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kernelchat -d kernelchat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: kernel-chat-app
+    network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KERNEL_REPO_PATH: /kernel
+      GEMMA_MODEL_PATH: /models
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: kernelchat
+      DB_USER: kernelchat
+      DB_PASSWORD: kernelchat
+    volumes:
+      - ${KERNEL_REPO_PATH:-/home/jcrigby/fun/linux}:/kernel:ro
+      - ${GEMMA_MODEL_PATH:-/home/jcrigby/models}:/models:ro
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+      - ./tests:/app/tests
+    stdin_open: true
+    tty: true
+
+  gemma:
+    build:
+      context: ./docker/gemma
+    container_name: kernel-chat-gemma
+    network_mode: host
+    volumes:
+      - ${GEMMA_MODEL_PATH:-/home/jcrigby/models}:/models:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "10"
+          memory: 32G
+
+volumes:
+  pgdata:
