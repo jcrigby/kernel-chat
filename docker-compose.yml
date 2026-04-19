@@ -35,7 +35,10 @@ services:
       DB_PASSWORD: kernelchat
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemma-3-27b-it:free}
+      HF_HOME: /hf_cache
+      HF_HUB_OFFLINE: "${HF_HUB_OFFLINE:-1}"
     volumes:
+      - hf_cache:/hf_cache
       - ${KERNEL_REPO_PATH:-/home/jcrigby/fun/linux}:/kernel:ro
       - ${GEMMA_MODEL_PATH:-/home/jcrigby/models}:/models:ro
       - ./src:/app/src
@@ -59,3 +62,4 @@ services:
 
 volumes:
   pgdata:
+  hf_cache:
