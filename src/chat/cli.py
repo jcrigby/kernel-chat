@@ -4,8 +4,8 @@ Commands:
   %C  - Reset conversation context
   %Q  - Quit
   %S  - Show last SQL query executed
-  %D  - Direct mode (bypass Gemma, use built-in queries)
-  %G  - Gemma mode (use LLM for query planning)
+  %D  - Direct mode (semantic search + raw SQL, no LLM)
+  %L  - LLM mode (OpenRouter, tool-use loop)
 """
 
 import readline  # noqa: F401 — enables line editing in input()
@@ -13,6 +13,7 @@ import sys
 
 from src.db.queries import execute_raw_sql
 from src.chat.session import DirectSession, Session
+from src.utils.config import OPENROUTER_API_KEY, OPENROUTER_MODEL
 from src.utils.logging import setup_logging
 
 
@@ -71,16 +72,23 @@ def main() -> None:
 
     stats = _get_db_stats()
     print(f"\n  Kernel History Chat ({stats})")
-    print("  Type %C to reset, %S for last SQL, %Q to quit\n")
+    print("  Modes: %D direct (default), %L LLM | %C reset, %S last SQL, %Q quit")
 
-    # Start in direct mode (no Gemma needed)
+    if OPENROUTER_API_KEY:
+        print(f"  LLM available: {OPENROUTER_MODEL}")
+    else:
+        print("  LLM not configured (set OPENROUTER_API_KEY for %L mode)")
+
+    print()
+
     direct = DirectSession()
-    gemma_session = None
-    use_gemma = False
+    llm_session = None
+    use_llm = False
 
     while True:
         try:
-            user_input = input("> ").strip()
+            mode_tag = "llm" if use_llm else "direct"
+            user_input = input(f"[{mode_tag}] > ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break
@@ -89,37 +97,41 @@ def main() -> None:
             continue
 
         # Commands
-        if user_input.upper() == "%Q":
+        upper = user_input.upper()
+        if upper == "%Q":
             break
-        elif user_input.upper() == "%C":
-            if gemma_session:
-                gemma_session.reset()
+        elif upper == "%C":
+            if llm_session:
+                llm_session.reset()
             print("Context cleared.")
             continue
-        elif user_input.upper() == "%S":
-            sql = direct.last_sql if not use_gemma else (gemma_session.last_sql if gemma_session else None)
+        elif upper == "%S":
+            sql = direct.last_sql if not use_llm else (llm_session.last_sql if llm_session else None)
             if sql:
                 print(f"```sql\n{sql}\n```")
             else:
                 print("No SQL executed yet.")
             continue
-        elif user_input.upper() == "%D":
-            use_gemma = False
+        elif upper == "%D":
+            use_llm = False
             print("Switched to direct mode.")
             continue
-        elif user_input.upper() == "%G":
-            use_gemma = True
-            if gemma_session is None:
-                gemma_session = Session()
-            print("Switched to Gemma mode.")
+        elif upper == "%L":
+            if not OPENROUTER_API_KEY:
+                print("OPENROUTER_API_KEY not set. Get one at https://openrouter.ai/keys")
+                continue
+            use_llm = True
+            if llm_session is None:
+                llm_session = Session()
+            print(f"Switched to LLM mode ({OPENROUTER_MODEL}).")
             continue
 
         # Handle queries
-        if use_gemma:
-            if gemma_session is None:
-                gemma_session = Session()
+        if use_llm:
+            if llm_session is None:
+                llm_session = Session()
             try:
-                answer = gemma_session.ask(
+                answer = llm_session.ask(
                     user_input,
                     on_status=_print_status,
                 )

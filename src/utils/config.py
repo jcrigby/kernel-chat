@@ -13,6 +13,11 @@ DB_PASSWORD: str = os.environ.get("DB_PASSWORD", "kernelchat")
 
 GEMMA_MODEL_PATH: str = os.environ.get("GEMMA_MODEL_PATH", "/models")
 
+# OpenRouter LLM
+OPENROUTER_API_KEY: str = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL: str = os.environ.get("OPENROUTER_MODEL", "google/gemma-3-27b-it:free")
+OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+
 # Embedding
 EMBEDDING_MODEL: str = os.environ.get("EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v2-moe")
 EMBEDDING_DIM: int = 768

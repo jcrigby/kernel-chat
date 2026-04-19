@@ -33,6 +33,8 @@ services:
       DB_NAME: kernelchat
       DB_USER: kernelchat
       DB_PASSWORD: kernelchat
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemma-3-27b-it:free}
     volumes:
       - ${KERNEL_REPO_PATH:-/home/jcrigby/fun/linux}:/kernel:ro
       - ${GEMMA_MODEL_PATH:-/home/jcrigby/models}:/models:ro

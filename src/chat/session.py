@@ -8,8 +8,8 @@ Implements the tool-use loop:
 import logging
 from dataclasses import dataclass, field
 
-from src.inference.gemma import generate_full
-from src.inference.prompts import build_prompt
+from src.inference.openrouter import generate_full
+from src.inference.prompts import SYSTEM_PROMPT
 from src.inference.tools import parse_tool_calls, execute_tool, ToolResult
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,6 @@ class Session:
         question: str,
         *,
         on_status: callable = lambda msg: None,
-        on_token: callable = lambda tok: None,
     ) -> str:
         """Process a user question through the tool-use loop.
 
@@ -45,18 +44,18 @@ class Session:
         self.last_sql = None
         self.last_tool_results.clear()
 
+        self.history.append({"role": "user", "content": question})
+
         for round_num in range(MAX_TOOL_ROUNDS):
-            prompt = build_prompt(question, self.history)
             on_status(f"Thinking (round {round_num + 1})...")
 
-            response = generate_full(prompt)
+            response = generate_full(SYSTEM_PROMPT, self.history)
 
             # Check for tool calls
             tool_calls = parse_tool_calls(response)
 
             if not tool_calls:
                 # No tool calls — this is the final answer
-                self.history.append({"role": "user", "content": question})
                 self.history.append({"role": "model", "content": response})
                 return response.strip()
 
@@ -72,28 +71,21 @@ class Session:
 
             self.last_tool_results = results
 
-            # Add to history for next round
-            self.history.append({"role": "user", "content": question})
+            # Add LLM response and tool results to history
             self.history.append({"role": "model", "content": response})
-
             for result in results:
                 self.history.append({
                     "role": "tool",
                     "content": result.output,
                 })
 
-            # The question for the next round becomes implicit
-            # (the LLM sees the tool results and continues)
-            question = "Based on the tool results above, please answer the original question."
-
         return "I wasn't able to find a complete answer after several rounds of querying. Please try rephrasing your question."
 
 
 class DirectSession:
-    """A session that bypasses Gemma and executes queries directly.
+    """A session that bypasses the LLM and executes queries directly.
 
-    Useful for testing the pipeline without the LLM, or when Gemma
-    model weights are not yet available.
+    Useful for testing the pipeline without an API key.
     """
 
     def __init__(self) -> None:
